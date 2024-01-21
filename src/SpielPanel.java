@@ -48,7 +48,10 @@ public class SpielPanel extends JPanel implements Runnable {
 
             try {
                 // Maintain 60 FPS
-                Thread.sleep(Duration.ofNanos(drawIntervalNano - Spiel.instance.deltaNano));
+                long totalNanos = drawIntervalNano - Spiel.instance.deltaNano;
+                long millisToWait = totalNanos / 1_000_000;
+                int nanosToWait = (int) (totalNanos % 1_000_000);
+                Thread.sleep(millisToWait, nanosToWait);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
