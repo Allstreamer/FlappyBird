@@ -1,8 +1,16 @@
+package Engine;
+
 import javax.swing.*;
 import java.awt.*;
-import java.time.Duration;
 
+/**
+ * @author Constantin Bredenbach
+ * @version 0.3
+ */
 public class SpielPanel extends JPanel implements Runnable {
+    /**
+     * Thread running the game loop
+     */
     Thread gameThread;
 
     public SpielPanel() {
@@ -20,6 +28,10 @@ public class SpielPanel extends JPanel implements Runnable {
         this.setDoubleBuffered(true);
     }
 
+    /**
+     * Starts execution of the programs game thread
+     * and the game loop.
+     */
     public void startGameThread() {
         gameThread = new Thread(this);
         // Starts run() in new thread to update window
@@ -28,33 +40,32 @@ public class SpielPanel extends JPanel implements Runnable {
 
     @Override
     public void run() {
-        final long drawIntervalNano = 1_000_000_000 / Spiel.instance.targetFPS;
 
         while (gameThread != null) {
-            // Don't run longer than 300 years! XD
-            // will overflow otherwise
-            final long start = System.nanoTime();
+            long lastTimeNS = System.nanoTime();
 
             // Update Game logic
-            Spiel.instance.update();
+            SpielBackend.instance.update();
             // Draw game
             repaint();
+            // Handle Delta & Time
+            final long timeToRender = System.nanoTime() - lastTimeNS;
 
-            final long end = System.nanoTime();
-
-            // Update deltas
-            Spiel.instance.deltaNano = (end - start);
-            Spiel.instance.delta = (double)(end - start) / 1_000_000_000;
+            final long drawIntervalNano = 1_000_000_000 / SpielBackend.instance.getTargetFPS();
+            final long timeToSleep = drawIntervalNano - timeToRender;
+            final int nsToSleep = (int) (timeToSleep % 1_000_000);
+            final long msToSleep = timeToSleep / 1_000_000;
 
             try {
-                // Maintain 60 FPS
-                long totalNanos = drawIntervalNano - Spiel.instance.deltaNano;
-                long millisToWait = totalNanos / 1_000_000;
-                int nanosToWait = (int) (totalNanos % 1_000_000);
-                Thread.sleep(millisToWait, nanosToWait);
+                Thread.sleep(msToSleep, nsToSleep);
             } catch (InterruptedException e) {
+                System.out.println("MS: " + msToSleep + " NS:" + nsToSleep);
                 throw new RuntimeException(e);
             }
+
+            long timeSinceLastFrameNS = System.nanoTime() - lastTimeNS;
+            SpielBackend.instance.deltaNano = timeSinceLastFrameNS;
+            SpielBackend.instance.delta = (double) timeSinceLastFrameNS / 1_000_000_000.0;
         }
     }
 
@@ -62,7 +73,7 @@ public class SpielPanel extends JPanel implements Runnable {
         super.paintComponent(g);
 
         Graphics2D g2D = (Graphics2D) g;
-        Spiel.instance.draw(g2D);
+        SpielBackend.instance.draw(g2D);
         g2D.dispose();
 
         // Flush Graphics buffer (for linux compatibility)
